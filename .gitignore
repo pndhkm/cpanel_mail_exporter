@@ -1,0 +1,7 @@
+cpanel_mail_exporter
+go.mod
+go.sum
+.vscode/
+.idea/
+*.swp
+*.swo

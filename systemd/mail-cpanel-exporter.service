@@ -1,0 +1,10 @@
+   [Unit]
+   Description=Mail Cpanel Exporter
+   After=network.target
+
+   [Service]
+   ExecStart=/path/to/mail-cpanel-exporter --apikey="your-api-key" --listen="localhost:9197" --endpoint="your-whm-endpoint:2087"
+   Restart=always
+
+   [Install]
+   WantedBy=multi-user.target
