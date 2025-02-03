@@ -50,7 +50,7 @@ Run the `cpanel_mail_exporter` binary with the required command-line arguments:
 ### Grafana
 Dashboard ID:
 ```
-22794
+22796
 ```
 or [manually import](grafana/cpanel_mail_exporter.json)
 
