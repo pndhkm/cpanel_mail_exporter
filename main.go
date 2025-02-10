@@ -9,18 +9,22 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"cpanel_mail_exporter/utils"
 )
 
 var (
-	endpoint string
-	apikey   string
-	listen   string
+	endpoint      string
+	apikey        string
+	listen        string
+	webConfigFile string
 )
 
 func main() {
 	flag.StringVar(&endpoint, "endpoint", "", "cPanel endpoint")
 	flag.StringVar(&apikey, "apikey", "", "API key")
-	flag.StringVar(&listen, "listen", "0.0.0.0:8080", "Address and port to listen on (format: ip:port)")
+	flag.StringVar(&listen, "listen", ":9197", "Address and port to listen on (format: ip:port)")
+	flag.StringVar(&webConfigFile, "web.config.file", "", "Path to web configuration YAML file")
 
 	flag.Parse()
 
@@ -31,12 +35,26 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Load web configuration if provided
+	var webConfig *utils.WebConfig
+	var err error
+	if webConfigFile != "" {
+		webConfig, err = utils.LoadWebConfig(webConfigFile)
+		if err != nil {
+			log.Fatalf("Error loading web config: %v", err)
+		}
+	}
+
 	// Initialize Prometheus metrics
 	initEmailStats()
 	initEmailLogs()
 
-	// Handle the /metrics endpoint
-	http.Handle("/metrics", promhttp.Handler())
+	// Handle the /metrics endpoint with optional Basic Auth
+	metricsHandler := promhttp.Handler()
+	if webConfig != nil && len(webConfig.BasicAuthUsers) > 0 {
+		metricsHandler = utils.BasicAuth(metricsHandler, webConfig.BasicAuthUsers)
+	}
+	http.Handle("/metrics", metricsHandler)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "<h1>Mail cPanel Exporter</h1>")
@@ -46,10 +64,18 @@ func main() {
 	// Start a goroutine to periodically fetch and update metrics
 	go updateMetrics()
 
-	// Start the HTTP server
-	fmt.Printf("Starting server on %s\n", listen)
-	if err := http.ListenAndServe(listen, nil); err != nil {
-		fmt.Printf("Error starting server: %v\n", err)
+	// Start the HTTP server with optional TLS
+	log.Println("Starting server...")
+	if webConfig != nil && webConfig.TLSServerConfig.CertFile != "" && webConfig.TLSServerConfig.KeyFile != "" {
+		log.Println("TLS is enabled.")
+		if err := http.ListenAndServeTLS(listen, webConfig.TLSServerConfig.CertFile, webConfig.TLSServerConfig.KeyFile, nil); err != nil {
+			log.Fatalf("Error starting TLS server: %v", err)
+		}
+	} else {
+		log.Println("TLS is disabled, starting without encryption.")
+		if err := http.ListenAndServe(listen, nil); err != nil {
+			log.Fatalf("Error starting server: %v", err)
+		}
 	}
 }
 
