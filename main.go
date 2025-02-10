@@ -8,7 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/pndhkm/cpanel_mail_exporter/utils"
+	"cpanel_mail_exporter/utils"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
